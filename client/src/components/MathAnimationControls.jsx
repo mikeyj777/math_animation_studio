@@ -1,6 +1,5 @@
 // components/MathAnimationControls.js
 import React, { useState } from 'react';
-import '../styles/global.css';
 
 const MathAnimationControls = () => {
   const [selectedSpace, setSelectedSpace] = useState({
