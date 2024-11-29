@@ -1,0 +1,24 @@
+/* src/styles/App.css */
+
+.app-container {
+  text-align: center;
+}
+
+.nav-bar {
+  background-color: #333;
+  padding: 10px;
+}
+
+.nav-bar a {
+  color: #fff;
+  margin: 0 15px;
+  text-decoration: none;
+}
+
+.nav-bar a:hover {
+  text-decoration: underline;
+}
+
+.home-container {
+  padding: 20px;
+}

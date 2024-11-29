@@ -1,18 +1,24 @@
-// App.js
+// src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import MathAnimationControls from './components/MathAnimationControls';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import ReactionDiffusion from './components/ReactionDiffusion';
-import './App.css';
+import Home from './components/Home';
+import './styles/App.css'; // Optional global styles
 import './styles/global.css';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/anim-controls" element={<MathAnimationControls />} />
-        <Route path="/reaction-diffusion" element={<ReactionDiffusion />} />
-      </Routes>
+      <div className="app-container">
+        <nav className="nav-bar">
+          <Link to="/">Home</Link>
+          <Link to="/reaction-diffusion">Reaction Diffusion</Link>
+        </nav>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/reaction-diffusion" element={<ReactionDiffusion />} />
+        </Routes>
+      </div>
     </Router>
   );
 }
