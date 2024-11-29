@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import '../styles/global.css';
 
-const MathAnimationControls = () => { 
+const MathAnimationControls = () => {
   const [selectedSpace, setSelectedSpace] = useState({
     dimension: '2D',
     evolution: 'continuous',
