@@ -39,7 +39,7 @@ const colorSchemes = {
 
 const ReactionDiffusion = () => {
   const canvasRef = useRef(null);
-  const [isRunning, setIsRunning] = useState(true);
+  const [isRunning, setIsRunning] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isDrawing, setIsDrawing] = useState(false);
   const frameCountRef = useRef(0);
@@ -288,20 +288,23 @@ const ReactionDiffusion = () => {
   const interpolateColor = (start, end, t) => {
     return Math.floor(start + (end - start) * t);
   };
-
+  
+  // Update the return statement in ReactionDiffusion.jsx
   return (
     <div className="rd-container">
-      <h2>Neural Pattern Generator</h2>
-      <canvas 
-        ref={canvasRef} 
-        width={600} 
-        height={600} 
-        className="rd-canvas"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      />
+      <h2 className="rd-title">Neural Pattern Generator</h2>
+      <div className="rd-canvas-container">
+        <canvas 
+          ref={canvasRef} 
+          width={800} 
+          height={800} 
+          className="rd-canvas"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        />
+      </div>
       <div className="rd-controls">
         <div className="rd-buttons">
           <button onClick={handleStartStop} className="rd-button">
@@ -313,7 +316,7 @@ const ReactionDiffusion = () => {
         </div>
         <div className="rd-select-group">
           <label>
-            Pattern Preset:
+            Pattern Preset
             <select value={selectedPreset} onChange={handlePresetChange}>
               {Object.keys(presets).map((presetName) => (
                 <option key={presetName} value={presetName}>
@@ -325,7 +328,7 @@ const ReactionDiffusion = () => {
         </div>
         <div className="rd-select-group">
           <label>
-            Color Palette:
+            Color Palette
             <select 
               value={selectedColorScheme} 
               onChange={(e) => setSelectedColorScheme(e.target.value)}
