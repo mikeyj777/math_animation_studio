@@ -2,37 +2,57 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 const presets = {
-  'Turing Pattern': { feed: 0.035, kill: 0.065 },
-  'Coral': { feed: 0.0545, kill: 0.062 },
-  'Fingerprint': { feed: 0.037, kill: 0.06 },
-  'Spirals': { feed: 0.01, kill: 0.047 },
-  'Spots': { feed: 0.078, kill: 0.061 },
-  'Worms': { feed: 0.1, kill: 0.05 },
-  'U-Skate World': { feed: 0.062, kill: 0.061 },
-  'Chaos': { feed: 0.026, kill: 0.051 },
+  'Coral Growth': { feed: 0.0545, kill: 0.062, diffA: 1.0, diffB: 0.5, brushSize: 15, flowField: true },
+  'Neural Network': { feed: 0.037, kill: 0.06, diffA: 0.8, diffB: 0.4, brushSize: 5, flowField: false },
+  'Maze Runner': { feed: 0.029, kill: 0.057, diffA: 0.9, diffB: 0.5, brushSize: 3, flowField: true },
+  'Cellular Chaos': { feed: 0.026, kill: 0.051, diffA: 1.2, diffB: 0.3, brushSize: 8, flowField: false },
+  'Quantum Ripples': { feed: 0.082, kill: 0.059, diffA: 1.1, diffB: 0.4, brushSize: 12, flowField: true },
+  'Fractal Dreams': { feed: 0.039, kill: 0.058, diffA: 0.9, diffB: 0.6, brushSize: 6, flowField: true },
 };
 
 const colorSchemes = {
-  Grayscale: { r: [0, 255], g: [0, 255], b: [0, 255] },
-  Fire: { r: [0, 255], g: [0, 128], b: [0, 0] },
-  Ocean: { r: [0, 0], g: [0, 128], b: [128, 255] },
-  Forest: { r: [0, 34], g: [32, 139], b: [0, 34] },
-  Sunset: { r: [255, 255], g: [94, 0], b: [0, 0] },
-  Psychedelic: { r: [0, 255], g: [255, 0], b: [0, 255] },
-  Rainbow: { r: [148, 255], g: [0, 255], b: [211, 0] },
+  'Deep Space': {
+    r: [20, 0, 100],
+    g: [0, 50, 200],
+    b: [50, 150, 255],
+    steps: 3
+  },
+  'Volcanic': {
+    r: [10, 200, 255],
+    g: [0, 50, 100],
+    b: [0, 0, 50],
+    steps: 3
+  },
+  'Bioluminescence': {
+    r: [0, 50, 150],
+    g: [100, 200, 255],
+    b: [50, 150, 200],
+    steps: 3
+  },
+  'Quantum Field': {
+    r: [100, 0, 255, 0],
+    g: [0, 255, 0, 100],
+    b: [255, 0, 100, 0],
+    steps: 4
+  }
 };
 
 const ReactionDiffusion = () => {
   const canvasRef = useRef(null);
   const [isRunning, setIsRunning] = useState(true);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isDrawing, setIsDrawing] = useState(false);
+  const frameCountRef = useRef(0);
 
-  const [feed, setFeed] = useState(0.055);
+  const [feed, setFeed] = useState(0.0545);
   const [kill, setKill] = useState(0.062);
   const [diffusionA, setDiffusionA] = useState(1.0);
   const [diffusionB, setDiffusionB] = useState(0.5);
+  const [brushSize, setBrushSize] = useState(15);
+  const [useFlowField, setUseFlowField] = useState(true);
 
-  const [selectedPreset, setSelectedPreset] = useState('Turing Pattern');
-  const [selectedColorScheme, setSelectedColorScheme] = useState('Grayscale');
+  const [selectedPreset, setSelectedPreset] = useState('Coral Growth');
+  const [selectedColorScheme, setSelectedColorScheme] = useState('Deep Space');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -43,17 +63,35 @@ const ReactionDiffusion = () => {
     let imageData = ctx.getImageData(0, 0, width, height);
     let pixels = imageData.data;
 
-    // Initialize concentrations
+    // Initialize concentrations with gradient patterns
     let a = new Array(width * height).fill(1);
     let b = new Array(width * height).fill(0);
 
-    // Seed initial pattern
+    // Create initial flow field
+    let flowField = new Array(width * height * 2).fill(0);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const index = (x + y * width) * 2;
+        flowField[index] = Math.sin(x * 0.1) * Math.cos(y * 0.1);
+        flowField[index + 1] = Math.cos(x * 0.1) * Math.sin(y * 0.1);
+      }
+    }
+
+    // Enhanced seeding pattern
     const seed = () => {
-      for (let i = 0; i < 10; i++) {
-        const x = Math.floor(Math.random() * width);
-        const y = Math.floor(Math.random() * height);
-        const index = x + y * width;
-        b[index] = 1;
+      // Create organic-looking initial patterns
+      for (let i = 0; i < width * height * 0.1; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * Math.min(width, height) * 0.3;
+        const x = Math.floor(width / 2 + Math.cos(angle) * radius);
+        const y = Math.floor(height / 2 + Math.sin(angle) * radius);
+        
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+          const index = x + y * width;
+          b[index] = Math.random();
+          // Create subtle variations in chemical A
+          a[index] = 0.9 + Math.random() * 0.1;
+        }
       }
     };
 
@@ -61,61 +99,109 @@ const ReactionDiffusion = () => {
 
     let animationFrameId;
 
+    const updateFlowField = () => {
+      const time = frameCountRef.current * 0.001;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const index = (x + y * width) * 2;
+          flowField[index] = Math.sin(x * 0.03 + time) * Math.cos(y * 0.02 + time);
+          flowField[index + 1] = Math.cos(x * 0.02 + time) * Math.sin(y * 0.03 + time);
+        }
+      }
+    };
+
+    const addChemicals = () => {
+      if (isDrawing) {
+        const x = Math.floor(mousePosition.x);
+        const y = Math.floor(mousePosition.y);
+        
+        for (let dy = -brushSize; dy <= brushSize; dy++) {
+          for (let dx = -brushSize; dx <= brushSize; dx++) {
+            const px = x + dx;
+            const py = y + dy;
+            
+            if (px >= 0 && px < width && py >= 0 && py < height) {
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist <= brushSize) {
+                const intensity = (1 - dist / brushSize) * 0.1;
+                const index = px + py * width;
+                b[index] = Math.min(b[index] + intensity, 1);
+              }
+            }
+          }
+        }
+      }
+    };
+
     const render = () => {
       if (!isRunning) {
         return;
       }
 
-      // Reaction-diffusion equations
-      let aNext = a.slice();
-      let bNext = b.slice();
+      frameCountRef.current++;
+      if (useFlowField) {
+        updateFlowField();
+      }
+      addChemicals();
+
+      let aNext = new Array(width * height);
+      let bNext = new Array(width * height);
 
       for (let y = 1; y < height - 1; y++) {
         for (let x = 1; x < width - 1; x++) {
           const index = x + y * width;
 
-          // Laplacian of A and B
-          const laplaceA =
-            a[index - 1] +
-            a[index + 1] +
-            a[index - width] +
-            a[index + width] +
-            0.05 * (a[index - width - 1] +
-              a[index - width + 1] +
-              a[index + width - 1] +
-              a[index + width + 1]) -
-            4.2 * a[index];
+          // Enhanced Laplacian calculation with flow field influence
+          let laplaceA = 0;
+          let laplaceB = 0;
 
-          const laplaceB =
-            b[index - 1] +
-            b[index + 1] +
-            b[index - width] +
-            b[index + width] +
-            0.05 * (b[index - width - 1] +
-              b[index - width + 1] +
-              b[index + width - 1] +
-              b[index + width + 1]) -
-            4.2 * b[index];
+          const weights = [0.2, 0.15, 0.15, 0.15, 0.15, 0.05, 0.05, 0.05, 0.05];
+          const offsets = [
+            [0, 0], [-1, 0], [1, 0], [0, -1], [0, 1],
+            [-1, -1], [1, -1], [-1, 1], [1, 1]
+          ];
 
+          for (let i = 0; i < weights.length; i++) {
+            const [dx, dy] = offsets[i];
+            const idx = (x + dx) + (y + dy) * width;
+            laplaceA += weights[i] * (a[idx] - a[index]);
+            laplaceB += weights[i] * (b[idx] - b[index]);
+          }
+
+          if (useFlowField) {
+            const flowIndex = index * 2;
+            const flowX = flowField[flowIndex];
+            const flowY = flowField[flowIndex + 1];
+            
+            laplaceA += (flowX + flowY) * 0.05;
+            laplaceB += (flowX - flowY) * 0.05;
+          }
+
+          // Enhanced reaction terms
           const reaction = a[index] * b[index] * b[index];
+          const reactionModifier = 1 + 0.1 * Math.sin(frameCountRef.current * 0.01 + x * 0.1 + y * 0.1);
 
-          aNext[index] =
-            a[index] +
-            (diffusionA * laplaceA - reaction + feed * (1 - a[index])) * 1.0;
+          aNext[index] = a[index] + (
+            diffusionA * laplaceA - 
+            reaction * reactionModifier + 
+            feed * (1 - a[index])
+          ) * 1.0;
 
-          bNext[index] =
-            b[index] +
-            (diffusionB * laplaceB + reaction - (kill + feed) * b[index]) * 1.0;
+          bNext[index] = b[index] + (
+            diffusionB * laplaceB + 
+            reaction * reactionModifier - 
+            (kill + feed) * b[index]
+          ) * 1.0;
 
-          // Clamp values between 0 and 1
-          aNext[index] = Math.min(Math.max(aNext[index], 0), 1);
-          bNext[index] = Math.min(Math.max(bNext[index], 0), 1);
+          // Clamp values
+          aNext[index] = Math.max(0, Math.min(1, aNext[index]));
+          bNext[index] = Math.max(0, Math.min(1, bNext[index]));
 
-          // Update pixel color
-          const c = Math.floor((aNext[index] - bNext[index]) * 255);
+          // Enhanced color mapping
+          const value = (aNext[index] - bNext[index] + 1) * 0.5;
           const idx = index * 4;
-
-          const color = getColor(c);
+          const color = getEnhancedColor(value);
+          
           pixels[idx] = color.r;
           pixels[idx + 1] = color.g;
           pixels[idx + 2] = color.b;
@@ -123,12 +209,10 @@ const ReactionDiffusion = () => {
         }
       }
 
-      // Swap arrays
       a = aNext;
       b = bNext;
 
       ctx.putImageData(imageData, 0, 0);
-
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -137,7 +221,8 @@ const ReactionDiffusion = () => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [isRunning, feed, kill, diffusionA, diffusionB, selectedColorScheme]);
+  }, [isRunning, feed, kill, diffusionA, diffusionB, selectedColorScheme, useFlowField, 
+      mousePosition, isDrawing, brushSize]);
 
   const handleStartStop = () => {
     setIsRunning(!isRunning);
@@ -146,6 +231,7 @@ const ReactionDiffusion = () => {
   const handleReset = () => {
     setIsRunning(false);
     setTimeout(() => {
+      frameCountRef.current = 0;
       setIsRunning(true);
     }, 100);
   };
@@ -156,29 +242,66 @@ const ReactionDiffusion = () => {
     const preset = presets[presetName];
     setFeed(preset.feed);
     setKill(preset.kill);
+    setDiffusionA(preset.diffA);
+    setDiffusionB(preset.diffB);
+    setBrushSize(preset.brushSize);
+    setUseFlowField(preset.flowField);
     handleReset();
   };
 
-  const handleColorSchemeChange = (e) => {
-    setSelectedColorScheme(e.target.value);
+  const handleMouseDown = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    setIsDrawing(true);
   };
 
-  const getColor = (value) => {
+  const handleMouseMove = (e) => {
+    if (isDrawing) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setMousePosition({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+  };
+
+  const getEnhancedColor = (value) => {
     const scheme = colorSchemes[selectedColorScheme];
-    const r = mapRange(value, 0, 255, scheme.r[0], scheme.r[1]);
-    const g = mapRange(value, 0, 255, scheme.g[0], scheme.g[1]);
-    const b = mapRange(value, 0, 255, scheme.b[0], scheme.b[1]);
+    const steps = scheme.steps;
+    const segment = Math.floor(value * (steps - 1));
+    const t = (value * (steps - 1)) % 1;
+
+    const r = interpolateColor(scheme.r[segment], scheme.r[segment + 1], t);
+    const g = interpolateColor(scheme.g[segment], scheme.g[segment + 1], t);
+    const b = interpolateColor(scheme.b[segment], scheme.b[segment + 1], t);
+
     return { r, g, b };
   };
 
-  const mapRange = (value, inMin, inMax, outMin, outMax) => {
-    return Math.floor(((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin);
+  const interpolateColor = (start, end, t) => {
+    return Math.floor(start + (end - start) * t);
   };
 
   return (
     <div className="rd-container">
-      <h2>Reaction-Diffusion Simulation</h2>
-      <canvas ref={canvasRef} width={400} height={400} className="rd-canvas" />
+      <h2>Neural Pattern Generator</h2>
+      <canvas 
+        ref={canvasRef} 
+        width={600} 
+        height={600} 
+        className="rd-canvas"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      />
       <div className="rd-controls">
         <div className="rd-buttons">
           <button onClick={handleStartStop} className="rd-button">
@@ -190,7 +313,7 @@ const ReactionDiffusion = () => {
         </div>
         <div className="rd-select-group">
           <label>
-            Preset Pattern:
+            Pattern Preset:
             <select value={selectedPreset} onChange={handlePresetChange}>
               {Object.keys(presets).map((presetName) => (
                 <option key={presetName} value={presetName}>
@@ -202,8 +325,11 @@ const ReactionDiffusion = () => {
         </div>
         <div className="rd-select-group">
           <label>
-            Color Scheme:
-            <select value={selectedColorScheme} onChange={handleColorSchemeChange}>
+            Color Palette:
+            <select 
+              value={selectedColorScheme} 
+              onChange={(e) => setSelectedColorScheme(e.target.value)}
+            >
               {Object.keys(colorSchemes).map((schemeName) => (
                 <option key={schemeName} value={schemeName}>
                   {schemeName}
@@ -217,7 +343,7 @@ const ReactionDiffusion = () => {
             Feed Rate: {feed.toFixed(3)}
             <input
               type="range"
-              min="0.0"
+              min="0.01"
               max="0.1"
               step="0.001"
               value={feed}
@@ -230,7 +356,7 @@ const ReactionDiffusion = () => {
             Kill Rate: {kill.toFixed(3)}
             <input
               type="range"
-              min="0.0"
+              min="0.01"
               max="0.1"
               step="0.001"
               value={kill}
@@ -243,7 +369,7 @@ const ReactionDiffusion = () => {
             Diffusion A: {diffusionA.toFixed(2)}
             <input
               type="range"
-              min="0.0"
+              min="0.2"
               max="2.0"
               step="0.1"
               value={diffusionA}
@@ -256,12 +382,35 @@ const ReactionDiffusion = () => {
             Diffusion B: {diffusionB.toFixed(2)}
             <input
               type="range"
-              min="0.0"
+              min="0.1"
               max="1.0"
               step="0.1"
               value={diffusionB}
               onChange={(e) => setDiffusionB(parseFloat(e.target.value))}
             />
+          </label>
+        </div>
+        <div className="rd-slider-group">
+          <label>
+            Brush Size: {brushSize}
+            <input
+              type="range"
+              min="1"
+              max="30"
+              step="1"
+              value={brushSize}
+              onChange={(e) => setBrushSize(parseInt(e.target.value))}
+            />
+          </label>
+        </div>
+        <div className="rd-checkbox-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={useFlowField}
+              onChange={(e) => setUseFlowField(e.target.checked)}
+            />
+            Enable Flow Field
           </label>
         </div>
       </div>
